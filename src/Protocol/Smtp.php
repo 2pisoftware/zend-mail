@@ -108,6 +108,13 @@ class Smtp extends AbstractProtocol
         if (null === $config) {
             $config = [];
         }
+		
+		// Initialize options and set if provided
+		$options = null;
+		
+		if (isset($config['options']) && is_array($config['options']) && array_key_exists('ssl', $config['options'])) {
+			$options = $config['options'];
+		}
 
         if (isset($config['ssl'])) {
             switch (strtolower($config['ssl'])) {
@@ -135,7 +142,7 @@ class Smtp extends AbstractProtocol
             }
         }
 
-        parent::__construct($host, $port);
+        parent::__construct($host, $port, $options);
     }
 
 

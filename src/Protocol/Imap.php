@@ -38,10 +38,10 @@ class Imap
      * @param  bool     $ssl   use ssl? 'SSL', 'TLS' or false
      * @throws \Zend\Mail\Protocol\Exception\ExceptionInterface
      */
-    public function __construct($host = '', $port = null, $ssl = false)
+    public function __construct($host = '', $port = null, $ssl = false, array $options = [])
     {
         if ($host) {
-            $this->connect($host, $port, $ssl);
+            $this->connect($host, $port, $ssl, $options);
         }
     }
 
@@ -56,13 +56,14 @@ class Imap
     /**
      * Open connection to IMAP server
      *
-     * @param  string      $host  hostname or IP address of IMAP server
-     * @param  int|null    $port  of IMAP server, default is 143 (993 for ssl)
-     * @param  string|bool $ssl   use 'SSL', 'TLS' or false
+     * @param  string      $host			hostname or IP address of IMAP server
+     * @param  int|null    $port			of IMAP server, default is 143 (993 for ssl)
+     * @param  string|bool $ssl				use 'SSL', 'TLS' or false
+	 * @param  array	   $options	a list of stream context options
      * @throws Exception\RuntimeException
      * @return string welcome message
      */
-    public function connect($host, $port = null, $ssl = false)
+    public function connect($host, $port = null, $ssl = false, array $options = [])
     {
         $isTls = false;
 
@@ -87,7 +88,15 @@ class Imap
         }
 
         ErrorHandler::start();
-        $this->socket = fsockopen($host, $port, $errno, $errstr, self::TIMEOUT_CONNECTION);
+		
+		// Use stream_context_create instead of fsockopen as it allows us to specify SSL stream options
+		$stream = stream_context_create();
+		if ($ssl !== false && !is_null($options) && is_array($options) && array_key_exists('ssl', $options)) {
+			stream_context_set_option($stream, $options);
+		}
+
+		$this->socket = stream_socket_client($host . ':' . $port, $errno, $errstr, self::TIMEOUT_CONNECTION, STREAM_CLIENT_CONNECT, $stream);
+
         $error = ErrorHandler::stop();
         if (!$this->socket) {
             throw new Exception\RuntimeException(sprintf(

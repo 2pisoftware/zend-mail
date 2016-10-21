@@ -47,6 +47,12 @@ abstract class AbstractProtocol
      */
     protected $port;
 
+	/**
+	 * Stream options used when connecting to host
+	 * @var array 
+	 */
+	protected $options;
+	
     /**
      * Instance of Zend\Validator\ValidatorChain to check hostnames
      * @var \Zend\Validator\ValidatorChain
@@ -82,9 +88,10 @@ abstract class AbstractProtocol
      *
      * @param  string  $host OPTIONAL Hostname of remote connection (default: 127.0.0.1)
      * @param  int $port OPTIONAL Port number (default: null)
+	 * @param  array $options OPTIONAL Stream options to use when connecting to host (default: null)
      * @throws Exception\RuntimeException
      */
-    public function __construct($host = '127.0.0.1', $port = null)
+    public function __construct($host = '127.0.0.1', $port = null, $options = null)
     {
         $this->validHost = new Validator\ValidatorChain();
         $this->validHost->attach(new Validator\Hostname(Validator\Hostname::ALLOW_ALL));
@@ -95,6 +102,11 @@ abstract class AbstractProtocol
 
         $this->host = $host;
         $this->port = $port;
+		
+		// Check that the 'ssl' key is given when providing options
+		if (!is_null($options) && is_array($options) && array_key_exists('ssl', $options)) {
+			$this->options = $options;
+		}
     }
 
     /**
@@ -206,9 +218,15 @@ abstract class AbstractProtocol
         $errorStr = '';
 
         // open connection
-        $this->socket = @stream_socket_client($remote, $errorNum, $errorStr, self::TIMEOUT_CONNECTION);
+		$stream = stream_context_create();
 
-        if ($this->socket === false) {
+		if (!is_null($this->options)) {
+			stream_context_set_option($this->socket, $this->options);
+		}
+
+        $this->socket = @stream_socket_client($remote, $errorNum, $errorStr, self::TIMEOUT_CONNECTION, STREAM_CLIENT_CONNECT, $stream);
+
+		if ($this->socket === false) {
             if ($errorNum == 0) {
                 $errorStr = 'Could not open socket';
             }

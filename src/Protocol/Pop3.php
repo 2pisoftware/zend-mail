@@ -43,10 +43,10 @@ class Pop3
      * @param  int|null    $port  port of POP3 server, null for default (110 or 995 for ssl)
      * @param  bool|string $ssl   use ssl? 'SSL', 'TLS' or false
      */
-    public function __construct($host = '', $port = null, $ssl = false)
+    public function __construct($host = '', $port = null, $ssl = false, array $options = [])
     {
         if ($host) {
-            $this->connect($host, $port, $ssl);
+            $this->connect($host, $port, $ssl, $options);
         }
     }
 
@@ -61,13 +61,14 @@ class Pop3
     /**
      * Open connection to POP3 server
      *
-     * @param  string      $host  hostname or IP address of POP3 server
-     * @param  int|null    $port  of POP3 server, default is 110 (995 for ssl)
-     * @param  string|bool $ssl   use 'SSL', 'TLS' or false
+     * @param  string      $host	hostname or IP address of POP3 server
+     * @param  int|null    $port	of POP3 server, default is 110 (995 for ssl)
+     * @param  string|bool $ssl		use 'SSL', 'TLS' or false
+	 * @param  array	   $options	a list of stream context options (the 'ssl' key must be provided if giving stream options)
      * @throws Exception\RuntimeException
      * @return string welcome message
      */
-    public function connect($host, $port = null, $ssl = false)
+    public function connect($host, $port = null, $ssl = false, array $options = [])
     {
         $isTls = false;
 
@@ -92,7 +93,15 @@ class Pop3
         }
 
         ErrorHandler::start();
-        $this->socket = fsockopen($host, $port, $errno, $errstr, self::TIMEOUT_CONNECTION);
+        
+		// Use stream_context_create instead of fsockopen as it allows us to specify SSL stream options
+		$stream = stream_context_create();
+		if ($ssl !== false && !is_null($options) && is_array($options) && array_key_exists('ssl', $options)) {
+			stream_context_set_option($stream, $options);
+		}
+		
+		$this->socket = stream_socket_client($host . ':' . $port, $errno, $errstr, self::TIMEOUT_CONNECTION, STREAM_CLIENT_CONNECT, $stream);
+
         $error = ErrorHandler::stop();
         if (!$this->socket) {
             throw new Exception\RuntimeException(sprintf(

@@ -145,9 +145,10 @@ class Pop3 extends AbstractStorage
         $password = isset($params->password) ? $params->password : '';
         $port     = isset($params->port)     ? $params->port     : null;
         $ssl      = isset($params->ssl)      ? $params->ssl      : false;
-
-        $this->protocol = new Protocol\Pop3();
-        $this->protocol->connect($host, $port, $ssl);
+		$options  = isset($params->options)  ? $params->options  : [];
+        
+		$this->protocol = new Protocol\Imap();
+        $this->protocol->connect($host, $port, $ssl, $options);
         $this->protocol->login($params->user, $password);
     }
 
